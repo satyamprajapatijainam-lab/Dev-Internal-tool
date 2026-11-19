@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dev Toolkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="head">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="11" rx="2.5" fill="#fff"/><path d="M7.5 10V6.5a4.5 4.5 0 0 1 9 0V10" stroke="#fff" stroke-width="2"/><circle cx="12" cy="15.5" r="1.6" fill="#12a594"/></svg></div>
+      <div><h1>Dev Toolkit</h1><p>Secure client-side encryption utility</p></div>
+    </div>
+    <span class="badge" id="badge">AES-256 · CBC · PKCS7</span>
+  </header>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" data-tab="encrypt" type="button">Encrypt</button>
+      <button class="tab" data-tab="decrypt" type="button">Decrypt</button>
+      <button class="tab" data-tab="json" type="button">JSON Viewer</button>
+      <button class="tab" data-tab="table" type="button">Transform TechExcel Data</button>
+      <button class="tab" data-tab="b64" type="button">Base64 to PDF / Excel</button>
+    </div>
+
+    <div class="body" id="body">
+
+      <aside id="side">
+        <!-- Encrypt / Decrypt settings -->
+        <div class="box" id="asideCrypto">
+          <p class="hint">Shared for both Encrypt and Decrypt</p>
+          <div class="two">
+            <div><label class="lbl" for="mode">Mode</label>
+              <select id="mode"><option value="CBC">CBC</option><option value="ECB">ECB</option></select></div>
+            <div><label class="lbl" for="keySize">Key size</label>
+              <select id="keySize"><option value="128">128 bit</option><option value="192">192 bit</option><option value="256" selected>256 bit</option></select></div>
+          </div>
+          <label class="lbl" for="fmt">Ciphertext format</label>
+          <select id="fmt"><option value="base64">Base64</option><option value="hex">Hex</option></select>
+
+          <div id="secretBlock">
+            <div class="lbl strong"><span>Combined secret</span><span class="count" id="secretCount">0 / 48</span></div>
+            <input type="text" id="combinedKey" placeholder="48-character IV + key" autocomplete="off" spellcheck="false" maxlength="48">
+            <p class="mini" id="secretHint">CBC: 16-character IV + 32-character key.</p>
+            <div id="ivRoWrap"><label class="lbl strong" for="ivDisplay">IV</label><input type="text" id="ivDisplay" class="ro" readonly value="—"></div>
+            <label class="lbl strong" for="keyDisplay">Key</label><input type="text" id="keyDisplay" class="ro" readonly value="—">
+            <button class="link" id="toManual" type="button">Enter key &amp; IV separately →</button>
+          </div>
+
+          <div id="manualBlock" class="hidden">
+            <div id="ivWrap"><div class="lbl strong"><span>IV</span><span class="count" id="ivCount">0 / 16</span></div>
+              <input type="text" id="ivManual" placeholder="16 characters" autocomplete="off" spellcheck="false" maxlength="16"></div>
+            <div class="lbl strong"><span>Key</span><span class="count" id="keyCount">0 / 32</span></div>
+            <input type="text" id="keyManual" placeholder="32 characters" autocomplete="off" spellcheck="false" maxlength="32">
+            <button class="link" id="toSecret" type="button">← Use one combined secret</button>
+          </div>
+
+          <p class="note">Runs entirely in your browser via CryptoJS. Nothing you enter here is sent anywhere.</p>
+        </div>
+
+        <!-- TechExcelToTable settings -->
+        <div class="box hidden" id="asideTable">
+          <p class="hint">Table options</p>
+          <label class="opt"><input type="checkbox" id="optIdx" checked> Show row numbers</label>
+          <label class="opt"><input type="checkbox" id="optHdr" checked> Include header when copying</label>
+          <div class="lbl strong" style="margin-top:18px"><span>Columns</span><span class="count" id="colCount"></span></div>
+          
+          <button class="link" id="allCols" type="button" style="display:inline-block">All</button>
+          <button class="link" id="noCols" type="button" style="margin-left:10px;display:inline-block">None</button>
+          <div class="cols" id="colList"><span class="mini">Convert JSON to see columns</span></div>
+          <p class="note">Runs entirely in your browser. Nothing you paste here is sent anywhere.</p>
+        </div>
+      </aside>
+
+      <main>
+        <!-- Encrypt -->
+        <section class="view" data-view="encrypt">
+          <label class="lbl first" for="plaintext">Plain text</label>
+          <textarea id="plaintext" placeholder="Type or paste the text to encrypt"></textarea>
+          <div class="warn hidden" id="encWarn"><span id="encWarnMsg"></span><span class="acts"><button class="link2" id="encToDecrypt" type="button">Move to Decrypt →</button><button class="link2" id="encAnyway" type="button">Encrypt anyway</button></span></div>
+          <button class="go" id="encryptBtn" type="button" disabled><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2"/></svg>Encrypt</button>
+          <div class="lbl first"><span id="cipherLabel">Ciphertext (Base64)</span></div>
+          <div class="outbox"><div class="out empty" id="ciphertextOut">Result will appear here</div><button class="copy" id="copyCiphertext" title="Copy" type="button"></button></div>
+        </section>
+
+        <!-- Decrypt -->
+        <section class="view hidden" data-view="decrypt">
+          <label class="lbl first" for="ciphertextIn">Ciphertext</label>
+          <textarea id="ciphertextIn" placeholder="Paste hex or Base64 ciphertext"></textarea>
+          <div class="row"><button class="go" id="decryptBtn" type="button" disabled><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2"/></svg>Decrypt</button>
+            <span class="pill hidden" id="decryptStatus"></span></div>
+          <div class="lbl first"><span>Plain text</span></div>
+          <div class="outbox"><div class="out empty" id="plaintextOut">Result will appear here</div><button class="copy" id="copyPlaintext" title="Copy" type="button"></button></div>
+          <div class="row" style="margin-top:12px">
+            <button class="btn active" id="viewPlain" type="button">Plain text</button>
+            <button class="btn" id="viewJson" type="button">JSON format</button>
+          </div>
+        </section>
+
+        <!-- JSON Tools -->
+        <section class="view hidden" data-view="json">
+          <div class="lbl first"><label for="jtIn">JSON input</label><span class="status" id="jtStatus"></span></div>
+          <textarea id="jtIn" class="mono" spellcheck="false" placeholder='Paste JSON here, e.g. {"name":"Asha","tags":["a","b"]}'></textarea>
+          <div class="row" style="margin:14px 0 16px">
+            <button class="btn" id="jtFormat" type="button">Format</button>
+            <button class="btn" id="jtMinify" type="button">Minify</button>
+            <button class="btn" id="jtValidate" type="button">Validate</button>
+            <select id="jtIndent" class="sm"><option value="2">2 spaces</option><option value="4">4 spaces</option><option value="tab">Tab</option></select>
+            <select id="jtSort" class="sm"><option value="keep">Keep order</option><option value="asc">Sort keys A–Z</option></select>
+            <button class="btn" id="jtClear" type="button">Clear</button>
+          </div>
+          <div class="lbl first"><span>JSON output</span></div>
+          <div class="outbox"><div class="out json empty" id="jtOut">Output will appear here</div><button class="copy" id="jtCopy" title="Copy" type="button"></button></div>
+        </section>
+
+        <!-- TechExcelToTable -->
+        <section class="view hidden" data-view="table">
+          <label class="lbl first" for="input">JSON input</label>
+          <textarea id="input" class="mono" spellcheck="false" placeholder='Paste JSON here. Supports {"COLUMNS":[...],"DATA":[[...]]} or [{...},{...}]'></textarea>
+          <div class="row" style="margin:14px 0 16px">
+            <button class="go" id="convert" type="button" style="margin:0">Convert to table</button>
+            <button class="btn" id="sample" type="button">Sample</button>
+            <button class="btn" id="clear" type="button">Clear</button>
+          </div>
+          <span class="pill error hidden" id="err"></span>
+          <div id="result" class="hidden">
+            <input type="text" id="filter" placeholder="Filter rows…" autocomplete="off">
+            <p class="info" id="info"></p>
+            <div class="tw"><table id="tbl"></table></div>
+            <div class="row" style="margin-top:12px">
+              <button class="btn" data-copy="tsv" type="button">Copy (Excel / TSV)</button>
+              <button class="btn" data-copy="csv" type="button">Copy CSV</button>
+              <button class="btn" data-copy="md" type="button">Copy Markdown</button>
+              <button class="btn" data-copy="json" type="button">Copy JSON</button>
+              <button class="btn" id="download" type="button">Download CSV</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Base64 to PDF / Excel -->
+        <section class="view hidden" data-view="b64" aria-labelledby="b64Title">
+          <h2 class="vt" id="b64Title">Base64 to PDF / Excel</h2>
+          <p class="vd">Decode a Base64 string (or a <code>.txt</code> file containing one), preview the result and download it as a PDF or Excel file. A complete PDF or workbook is kept byte-for-byte; plain text, CSV/TSV, JSON and PNG/JPEG data are converted. Everything runs in your browser.</p>
+          <div class="b64grid">
+            <div class="box b64in">
+              <div class="lbl first"><label for="b64In">Base64 input</label><span class="count" id="b64Count" aria-live="off">0 characters</span></div>
+              <textarea id="b64In" class="mono b64ta" spellcheck="false" autocomplete="off" placeholder="Paste Base64 here (a data:…;base64, prefix, line breaks and URL-safe characters are fine)" aria-describedby="b64FileInfo"></textarea>
+              <div class="row" style="margin-top:10px">
+                <input type="file" id="b64File" class="sr" accept=".txt,.b64,text/plain" aria-label="Upload a .txt file containing Base64">
+                <button class="btn" id="b64Upload" type="button">Upload .txt file</button>
+                <span class="mini b64fi" id="b64FileInfo" style="margin:0"></span>
+              </div>
+
+              <fieldset class="b64fs">
+                <legend class="lbl strong">Output format</legend>
+                <div class="seg">
+                  <label><input type="radio" name="b64fmt" value="pdf" checked><span>PDF</span></label>
+                  <label><input type="radio" name="b64fmt" value="xlsx"><span>Excel (.xlsx)</span></label>
+                </div>
+              </fieldset>
+
+              <div class="row">
+                <button class="go" id="b64Convert" type="button"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-5-5 5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Convert &amp; Preview</button>
+                <button class="btn" id="b64Clear" type="button">Clear</button>
+              </div>
+              <p class="note" style="margin-top:4px">Nothing you paste or upload is sent anywhere. PDF and Excel libraries are fetched from a CDN the first time you convert.</p>
+            </div>
+
+            <div class="box b64out" aria-label="Preview">
+              <div class="lbl first"><span>Preview</span><span class="status" id="b64Status"></span></div>
+              <div class="b64pv" id="b64Pv" data-state="empty" aria-busy="false">
+                <div class="b64s b64empty" id="b64Empty"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3h7l5 5v13H7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 3v5h5M10 13h6M10 17h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><p>Your preview will appear here.</p><p class="mini">Paste Base64 or upload a file, pick PDF or Excel, then press Convert &amp; Preview.</p></div>
+                <div class="b64s b64load hidden" id="b64Load"><div class="spin" aria-hidden="true"></div><p id="b64LoadMsg">Converting…</p></div>
+                <div class="b64s hidden" id="b64Err"><div class="alert" role="alert" id="b64ErrMsg"></div></div>
+                <div class="b64s b64ok hidden" id="b64Ok">
+                  <div class="row b64meta"><span class="pill ok" id="b64Badge"></span><span class="info" id="b64Info" style="margin:0"></span></div>
+                  <p class="mini b64note hidden" id="b64Note"></p>
+                  <div id="b64PdfWrap" class="hidden"><iframe id="b64Pdf" class="b64frame" title="PDF preview" src="about:blank"></iframe></div>
+                  <div id="b64XlsWrap" class="hidden">
+                    <div class="row" style="margin-bottom:10px" id="b64SheetRow"><label class="lbl" for="b64Sheet" style="margin:0">Sheet</label><select id="b64Sheet" class="sm"></select></div>
+                    <p class="info" id="b64SheetInfo" style="margin:0 0 8px"></p>
+                    <div class="tw" tabindex="0" role="region" aria-label="Worksheet preview"><table id="b64Tbl"></table></div>
+                  </div>
+                </div>
+              </div>
+              <div class="b64dl">
+                <label class="lbl" for="b64Name" style="margin:14px 0 7px">File name</label>
+                <div class="row">
+                  <div class="b64nw"><input type="text" id="b64Name" autocomplete="off" spellcheck="false" placeholder="document" maxlength="100"><span class="b64ext" id="b64Ext">.pdf</span></div>
+                  <button class="go" id="b64Download" type="button" disabled style="margin:0;white-space:nowrap">Download PDF</button>
+                </div>
+                <a class="link hidden" id="b64Open" href="#" target="_blank" rel="noopener">Open PDF in a new tab</a>
+              </div>
+            </div>
+          </div>
+          <div class="sr" id="b64Live" role="status" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <p class="foot">AES encryption with PKCS7 padding · Key = 16/24/32 characters · IV = 16 characters for CBC<br>Developed by: Satyam Prajapati</p>
+</div>
+
+<script src="js/utils.js"></script>
+<script src="js/aes.js"></script>
+<script src="js/json-tools.js"></script>
+<script src="js/table.js"></script>
+<script src="js/base64-file.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
